@@ -1,4 +1,4 @@
 Model,Accuracy,F1 (macro),F1 (weighted)
-Logistic Regression,0.771,0.7,0.775
+Logistic Regression,0.771,0.70,0.775
 Random Forest,0.731,0.652,0.745
 XGBoost,0.761,0.7,0.767

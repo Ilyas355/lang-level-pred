@@ -1,15 +1,27 @@
-# app.py (snippet)
+# app.py
 import streamlit as st
-from app_pages import home, data_explorer, model_evaluation, predict_cefr, about
+from app_pages.home import render as page_home
+from app_pages.data_explorer import render as page_data
+from app_pages.model_evaluation import render as page_eval
+from app_pages.predict_cefr import render as page_predict
+from app_pages.hypotheses import render as page_hypotheses
+from app_pages.about import render as page_about
 
 PAGES = {
-    "🏠 Quick Project Summary": home.render,
-    "📊 Data Explorer": data_explorer.render,
-    "🧪 Model Evaluation": model_evaluation.render,
-    "🎯 Predict CEFR": predict_cefr.render,
-    "ℹ️ About & Methods": about.render,
+    "🏠 Quick Project Summary": page_home,
+    "🔎 Data Explorer": page_data,
+    "📈 Model Evaluation": page_eval,
+    "🎯 Predict CEFR": page_predict,
+    "🧪 Hypotheses & Validation": page_hypotheses,
+    "ℹ️ About & Methods": page_about,
 }
 
-st.sidebar.title("Navigation")
-choice = st.sidebar.radio("Go to", list(PAGES.keys()))
-PAGES[choice]()
+def main():
+    st.set_page_config(page_title="CEFR Classifier Dashboard", page_icon="🎓", layout="wide")
+    with st.sidebar:
+        st.title("CEFR Dashboard")
+        choice = st.radio("Navigate", list(PAGES.keys()), index=0)
+    PAGES[choice]()
+
+if __name__ == "__main__":
+    main()

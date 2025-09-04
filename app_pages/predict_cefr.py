@@ -1,218 +1,110 @@
 # app_pages/predict_cefr.py
 import streamlit as st
 import pandas as pd
-import numpy as np
-import joblib
-from pathlib import Path
-
-# Adjust these if your filenames differ
-MODEL_PATH = "models/final_logistic_regression_pipeline.pkl"   # or "models/logreg_tuned_pipeline.joblib"
-PREPROCESSOR_PATH = "models/preprocessing_pipeline.pkl"        # <- make sure you saved this from the notebook
-
-CEFR2ID = {"A1":0,"A2":1,"B1":2,"B2":3,"C1":4,"C2":5}
-ID2CEFR = {v:k for k,v in CEFR2ID.items()}
-
-def simple_recs(pred_label, proba_by_class, feats):
-    overview, actions = [], []
-    LOW_CONF, BORDERLINE = 0.55, 0.10
-    IMBAL_TILT, HIGH_VAR = 0.50, 0.70
-    items = sorted(proba_by_class.items(), key=lambda kv: kv[1], reverse=True) if proba_by_class else []
-    if items:
-        top_label, top_p = items[0]
-        second_label, second_p = items[1] if len(items) > 1 else (None, 0.0)
-        if top_p < LOW_CONF:
-            overview.append(f"Low confidence (p={top_p:.2f}). Borderline **{top_label}** vs **{second_label}**.")
-        elif (top_p - second_p) < BORDERLINE:
-            overview.append(f"Borderline **{top_label}** vs **{second_label}** (Δ={(top_p-second_p):.02f}).")
-        else:
-            overview.append(f"Prediction **{pred_label}** with good confidence (p={top_p:.2f}).")
-    else:
-        overview.append(f"Prediction **{pred_label}**.")
-    prb = float(feats.get("productive_dominant", 0.0))
-    if prb > IMBAL_TILT:
-        overview.append("Stronger in **productive** skills than receptive.")
-        actions.append("Increase input: daily reading/listening with short summaries.")
-    elif prb < -IMBAL_TILT:
-        overview.append("Stronger in **receptive** skills than productive.")
-        actions.append("Add output: timed speaking prompts and short writing tasks.")
-    else:
-        overview.append("Overall skill balance is reasonably even.")
-    diffs = [
-        float(feats.get("speaking_minus_avg", 0.0)),
-        float(feats.get("reading_minus_avg", 0.0)),
-        float(feats.get("listening_minus_avg", 0.0)),
-        float(feats.get("writing_minus_avg", 0.0)),
-    ]
-    var_std = float(np.std(diffs))
-    weakest = str(feats.get("weakest_skill", "")).lower()
-    SKILL_TIPS = {
-        "speaking":  ["Daily 5–10 min monologue; record & self-review.",
-                      "Shadow short audio to improve fluency/phonology."],
-        "listening": ["Short clips with transcript; pause & summarise.",
-                      "Re-listen to catch numbers/dates/names."],
-        "reading":   ["Skim for gist, then scan for detail.",
-                      "Build topic wordlists; review with spaced repetition."],
-        "writing":   ["One paragraph/day; focus on linkers and accuracy.",
-                      "Rewrite after feedback to reduce common errors."],
-    }
-    if var_std > HIGH_VAR and weakest in SKILL_TIPS:
-        overview.append(f"Profile is **uneven**; weakest area: **{weakest}**.")
-        actions.extend(SKILL_TIPS[weakest])
-    elif var_std > HIGH_VAR:
-        overview.append("Profile is **uneven** across skills.")
-        actions.append("Prioritise practice in your weakest skill this week.")
-    return overview, actions[:3]
-
-@st.cache_resource
-def load_pipeline():
-    return joblib.load(MODEL_PATH)
-
-@st.cache_resource
-def load_preprocessor_if_exists():
-    p = Path(PREPROCESSOR_PATH)
-    return joblib.load(p) if p.exists() else None
-
-def has_preprocessor(pipe) -> bool:
-    try:
-        return hasattr(pipe, "named_steps") and ("preprocessor" in pipe.named_steps)
-    except Exception:
-        return False
-
-def get_label_order(pipe):
-    try:
-        return list(pipe.classes_)
-    except Exception:
-        try:
-            last = list(pipe.named_steps.keys())[-1]
-            return list(pipe.named_steps[last].classes_)
-        except Exception:
-            return None
+from src.predict import (
+    load_pipeline, load_preprocessor_if_exists, has_preprocessor, get_label_order,
+    simple_recs, ID2CEFR, PREPROCESSOR_PATH
+)
 
 def render():
     st.header("Predict CEFR Level")
-    st.caption("Works with: (a) a unified pipeline (with preprocessor) or (b) a separate preprocessor + model.")
+    st.caption("Works with a unified pipeline **or** a separate preprocessor + model.")
 
-    if not Path(MODEL_PATH).exists():
-        st.error(f"Model not found at `{MODEL_PATH}`.")
+    try:
+        pipe = load_pipeline()
+    except Exception as e:
+        st.error(f"Model not found or unreadable. {e}")
         return
 
-    pipe = load_pipeline()
-    separate_preproc = load_preprocessor_if_exists() if not has_preprocessor(pipe) else None
+    separate_preproc = None if has_preprocessor(pipe) else load_preprocessor_if_exists()
 
-    # === Schema + user-friendly labels & tooltips ===
+    with st.expander("Quick entry hints", expanded=True):
+        st.markdown("""
+- **Skill levels:** 0–33 = *Beginner*, 34–66 = *Intermediate*, 67–100 = *Advanced*.  
+- **`<skill>_minus_avg`:** skill − mean(speaking, reading, listening, writing).  
+- **`strength_weakness_gap`:** max(`<skill>_minus_avg`) − min(`<skill>_minus_avg`).  
+- **`learning_profile`:** *Balanced* (skills near average) or *Uneven Development* (spread).  
+- **`productive_dominant`:** choose **0** if receptive (reading+listening ≥ speaking+writing), **1** if productive (speaking+writing > reading+listening).  
+        """)
+
+    # Inputs
     skills = ["speaking","reading","listening","writing"]
     levels = ["Beginner","Intermediate","Advanced"]
     profiles = ["Balanced","Uneven Development"]
 
-    feature_schema = {
-        "strongest_skill":        ("category", skills),
-        "weakest_skill":          ("category", skills),
-        "second_weakest_skill":   ("category", skills),
-        "strength_weakness_gap":  ("number", 0.0),
-        "learning_profile":       ("category", profiles),
-        "speaking_minus_avg":     ("number", 0.0),
-        "reading_minus_avg":      ("number", 0.0),
-        "listening_minus_avg":    ("number", 0.0),
-        "writing_minus_avg":      ("number", 0.0),
-        "productive_dominant":    ("number", 0.0),
-        "speaking_level":         ("category", levels),
-        "reading_level":          ("category", levels),
-        "listening_level":        ("category", levels),
-        "writing_level":          ("category", levels),
+    c1, c2 = st.columns(2)
+    strongest = c1.selectbox("strongest_skill", options=skills)
+    weakest   = c2.selectbox("weakest_skill", options=skills)
+    second_wk = c1.selectbox("second_weakest_skill", options=skills)
+    profile   = c2.selectbox("learning_profile", options=profiles)
+
+    st.markdown("**Per-skill level bins**")
+    l1, l2, l3, l4 = st.columns(4)
+    speaking_level   = l1.selectbox("speaking_level", options=levels)
+    reading_level    = l2.selectbox("reading_level", options=levels)
+    listening_level  = l3.selectbox("listening_level", options=levels)
+    writing_level    = l4.selectbox("writing_level", options=levels)
+
+    st.markdown("**Numeric deltas (can leave at 0.0 if unsure)**")
+    n1, n2 = st.columns(2)
+    speaking_minus_avg  = n1.number_input("speaking_minus_avg", value=0.0, step=0.1)
+    reading_minus_avg   = n2.number_input("reading_minus_avg",  value=0.0, step=0.1)
+    listening_minus_avg = n1.number_input("listening_minus_avg", value=0.0, step=0.1)
+    writing_minus_avg   = n2.number_input("writing_minus_avg",   value=0.0, step=0.1)
+    strength_weakness_gap = st.number_input("strength_weakness_gap", value=0.0, step=0.1)
+
+    st.markdown("**Productive vs Receptive balance**")
+    mode = st.radio("Set productive_dominant", ["Simple (0/1)", "Manual numeric"], horizontal=True)
+    if mode == "Simple (0/1)":
+        pd_flag = st.selectbox("productive_dominant_flag (0=receptive, 1=productive)", options=[0, 1], index=0)
+        productive_dominant = float(pd_flag)
+    else:
+        productive_dominant = st.number_input("productive_dominant (numeric)", value=0.0, step=0.1)
+
+    X_live = {
+        "strongest_skill": strongest,
+        "weakest_skill": weakest,
+        "second_weakest_skill": second_wk,
+        "strength_weakness_gap": float(strength_weakness_gap),
+        "learning_profile": profile,
+        "speaking_minus_avg": float(speaking_minus_avg),
+        "reading_minus_avg":  float(reading_minus_avg),
+        "listening_minus_avg":float(listening_minus_avg),
+        "writing_minus_avg":  float(writing_minus_avg),
+        "productive_dominant":float(productive_dominant),
+        "speaking_level": speaking_level,
+        "reading_level": reading_level,
+        "listening_level": listening_level,
+        "writing_level": writing_level,
     }
-
-    LABELS = {
-        "strongest_skill":        "strongest_skill (pick your strongest of the four skills)",
-        "weakest_skill":          "weakest_skill (pick your weakest skill)",
-        "second_weakest_skill":   "second_weakest_skill (next weakest skill)",
-        "strength_weakness_gap":  "strength_weakness_gap (max(skill_minus_avg) − min(skill_minus_avg))",
-        "learning_profile":       "learning_profile (Balanced vs Uneven Development)",
-
-        "speaking_minus_avg":     "speaking_minus_avg (speaking − mean of all four)",
-        "reading_minus_avg":      "reading_minus_avg (reading − mean of all four)",
-        "listening_minus_avg":    "listening_minus_avg (listening − mean of all four)",
-        "writing_minus_avg":      "writing_minus_avg (writing − mean of all four)",
-
-        "productive_dominant":    "productive_dominant ((speaking_minus_avg + writing_minus_avg) − (reading_minus_avg + listening_minus_avg))",
-
-        "speaking_level":         "speaking_level (0–33=Beginner, 34–66=Intermediate, 67–100=Advanced)",
-        "reading_level":          "reading_level (0–33=Beginner, 34–66=Intermediate, 67–100=Advanced)",
-        "listening_level":        "listening_level (0–33=Beginner, 34–66=Intermediate, 67–100=Advanced)",
-        "writing_level":          "writing_level (0–33=Beginner, 34–66=Intermediate, 67–100=Advanced)",
-    }
-
-    HELPS = {
-        "strength_weakness_gap":  "Difference between your strongest and weakest skill deviations.",
-        "learning_profile":       "Balanced = skills near the mean; Uneven = larger spread across skills.",
-        "productive_dominant":    "Positive → productive (speaking/writing) stronger; negative → receptive (reading/listening) stronger; near 0 → balanced.",
-        "speaking_minus_avg":     "How far speaking sits above/below your own average across the four skills.",
-        "reading_minus_avg":      "How far reading sits above/below your own average across the four skills.",
-        "listening_minus_avg":    "How far listening sits above/below your own average across the four skills.",
-        "writing_minus_avg":      "How far writing sits above/below your own average across the four skills.",
-        "speaking_level":         "Guidance: 0–33 Beginner, 34–66 Intermediate, 67–100 Advanced.",
-        "reading_level":          "Guidance: 0–33 Beginner, 34–66 Intermediate, 67–100 Advanced.",
-        "listening_level":        "Guidance: 0–33 Beginner, 34–66 Intermediate, 67–100 Advanced.",
-        "writing_level":          "Guidance: 0–33 Beginner, 34–66 Intermediate, 67–100 Advanced.",
-    }
-
-    st.subheader("Enter engineered features")
-    st.caption("Tip: If unsure, leave numeric fields at 0.0 (balanced). Use the labels for quick formulas/ranges.")
-    cols = st.columns(2)
-    X_live = {}
-    for i, (feat, (ftype, opts)) in enumerate(feature_schema.items()):
-        label = LABELS.get(feat, feat)
-        help_txt = HELPS.get(feat, None)
-        with cols[i % 2]:
-            if ftype == "number":
-                X_live[feat] = float(st.number_input(label, value=float(opts), step=0.1, help=help_txt))
-            elif ftype == "category":
-                X_live[feat] = st.selectbox(label, options=opts, help=help_txt)
-            else:
-                st.warning(f"Unknown type for {feat}: {ftype}")
 
     st.markdown("---")
-    st.subheader("(Optional) Rule-based CEFR for QA")
-    rule_cefr = st.selectbox("Compare with a known/estimated CEFR (optional):",
-                              options=["(none)","A1","A2","B1","B2","C1","C2"], index=0)
+    rule_cefr = st.selectbox("Optional: rule-based/known CEFR for QA", options=["(none)","A1","A2","B1","B2","C1","C2"], index=0)
 
     if st.button("Predict CEFR"):
         X_df = pd.DataFrame([X_live])
-
-        # ---------- Transform & predict ----------
         try:
             if has_preprocessor(pipe):
-                # Unified pipeline: pass raw engineered DataFrame
                 yhat = pipe.predict(X_df)[0]
-                if hasattr(pipe, "predict_proba"):
-                    proba = pipe.predict_proba(X_df)[0]
-                else:
-                    proba = None
+                proba = pipe.predict_proba(X_df)[0] if hasattr(pipe, "predict_proba") else None
                 label_order = get_label_order(pipe)
             else:
                 if separate_preproc is None:
                     st.error(
                         "Your saved model does not include a preprocessor and "
                         f"`{PREPROCESSOR_PATH}` was not found.\n\n"
-                        "Fix: in your notebook, save the fitted preprocessor:\n"
+                        "Fix: save the fitted preprocessor from the notebook:\n"
                         f"`joblib.dump(preprocessor, '{PREPROCESSOR_PATH}')`"
                     )
                     return
-                # Transform with the same fitted preprocessor used in training
                 X_enc = separate_preproc.transform(X_df)
                 yhat = pipe.predict(X_enc)[0]
-                if hasattr(pipe, "predict_proba"):
-                    proba = pipe.predict_proba(X_enc)[0]
-                else:
-                    proba = None
+                proba = pipe.predict_proba(X_enc)[0] if hasattr(pipe, "predict_proba") else None
                 label_order = get_label_order(pipe)
-
         except ValueError as e:
             st.error(
-                "Prediction failed while converting inputs. This usually means the model expects **numeric** "
-                "features (already encoded), but the UI is sending raw categorical strings.\n\n"
-                "Ensure either:\n"
-                "1) Your model file contains a `preprocessor` step; **or**\n"
-                f"2) You saved and placed the fitted preprocessor at `{PREPROCESSOR_PATH}`.\n\n"
+                "Prediction failed during type conversion/encoding. Ensure the pipeline contains a "
+                "`preprocessor` or you placed the fitted preprocessor at the path shown above.\n\n"
                 f"Details: {e}"
             )
             return
@@ -224,39 +116,24 @@ def render():
         proba_dict = {}
         if proba is not None and label_order is not None:
             ce_labels = [ID2CEFR.get(int(c), str(c)) for c in label_order]
-            proba_dict = {lab: float(np.round(p, 3)) for lab, p in zip(ce_labels, proba)}
+            proba_dict = {lab: float(round(p, 3)) for lab, p in zip(ce_labels, proba)}
             st.write("Class probabilities:")
             st.write(proba_dict)
 
-        # QA flags
         flags = []
-        if proba_dict:
-            top_p = max(proba_dict.values())
-            if top_p < 0.55:
-                flags.append(f"Low confidence prediction (max p = {top_p:.2f}).")
+        if proba_dict and max(proba_dict.values()) < 0.55:
+            flags.append("Low confidence prediction (max p < 0.55).")
         if rule_cefr != "(none)" and rule_cefr != pred_label:
             flags.append(f"Model disagrees with rule-based CEFR (**{rule_cefr}** vs **{pred_label}**).")
-        if flags:
-            st.warning("⚠️ Review flags:\n\n" + "\n".join(f"- {f}" for f in flags))
-        else:
-            st.info("No QA flags for this prediction.")
+        if flags: st.warning("⚠️ Review flags:\n\n" + "\n".join(f"- {f}" for f in flags))
+        else: st.info("No QA flags for this prediction.")
 
-        # Recommendations
         st.subheader("Personalised recommendations")
         overview, actions = simple_recs(pred_label, proba_dict, X_live)
-        for line in overview:
-            st.write(f"• {line}")
+        for line in overview: st.write(f"• {line}")
         if actions:
             st.markdown("**Suggested next steps:**")
-            for tip in actions:
-                st.write(f"- {tip}")
+            for tip in actions: st.write(f"- {tip}")
 
         with st.expander("Show input row"):
             st.dataframe(X_df)
-
-    with st.expander("Notes"):
-        st.markdown(f"""
-- If your model **doesn't** include a preprocessor, place the fitted encoder at `{PREPROCESSOR_PATH}`.
-- In your notebook, save it with: `joblib.dump(preprocessor, '{PREPROCESSOR_PATH}')`.
-- Set `handle_unknown='ignore'` on your `OneHotEncoder` during training to avoid errors at inference when a new category appears.
-""")
