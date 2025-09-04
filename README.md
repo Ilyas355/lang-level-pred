@@ -72,14 +72,31 @@ To avoid **target leakage**, the modelling task uses **engineered features** onl
 
 ## Project Terms & Jargon
 
+* **CEFR:** Common European Framework of Reference, ordered levels **A1 < A2 < B1 < B2 < C1 < C2**
+* **Target leakage:** Using features that directly encode the label (e.g., raw total/average score)
+* **Macro-F1:** Per-class F1 averaged equally (fairness across classes)
+* **Weighted-F1:** Per-class F1 weighted by class frequency
+
 
 ---
 
 ## Business Requirements
 
+
+1. **The client has asked us to** analyse the learner dataset to surface patterns driving CEFR outcomes, **quantify class imbalance**, and **detect target leakage**; from these findings, define **engineered, non-leaky features** suitable for modelling.
+
+2. **The client has asked us to** build and operationalise a **fair, interpretable CEFR classifier** using those engineered features, meeting **Accuracy ≥ 0.75** and **Macro-F1 ≥ 0.70**, and expose a Streamlit **Predict CEFR** page with predicted label, class probabilities, and simple learning recommendations.
+
 ---
 
 ## Hypotheses and how to validate
+
+
+* **H1 — Raw totals are (too) predictive of CEFR → leakage risk.**
+  *Validate with* correlation/PPS vs `overall_cefr`, and demonstrate a redesign: **drop raw scores** in modelling and use engineered features only.
+
+* **H2 — Class imbalance exists (C1/C2 under-represented).**
+  *Validate with* class count plots; address via **macro-F1** optimisation, cross-validation, and results commentary by class.
 
 ---
 
