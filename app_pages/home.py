@@ -49,11 +49,11 @@ def render():
 - **Training target:** `cefr_encoded` (0–5)  
 - **Local paths:**  
   - Raw: `data/raw/`  
-  - Cleaned: `data/processed/cleaned_lang_proficiency_results.csv`  
+  - Cleaned: `data/clean/cleaned_lang_proficiency_results.csv`  
 - **Leakage control:** Raw exam totals are **not** used in modelling; only **engineered, leakage-free features** are used.
     """)
 
-    cleaned_path = Path("data/processed/cleaned_lang_proficiency_results.csv")
+    cleaned_path = Path("data/clean/cleaned_lang_proficiency_results.csv")
     c1, c2 = st.columns(2)
     c1.caption(f"Cleaned dataset present? **{'Yes' if cleaned_path.exists() else 'No'}**")
     c2.caption(f"Saved pipeline present? **{'Yes' if MODEL_PATH.exists() else 'No'}**")
