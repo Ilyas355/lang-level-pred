@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from pathlib import Path
+import altair as alt
 
 TEST_METRICS_PATH = Path("reports/test_metrics_tuned.csv")
 CV_SUMMARY_PATH   = Path("reports/cv_summary.csv")
@@ -35,22 +36,117 @@ def _select_winner(test_df: pd.DataFrame):
     return ranked.index[0], ranked.iloc[0], ranked
 
 def _plot_test_bar(test_df: pd.DataFrame):
-    plt.figure(figsize=(8,5))
-    melted = test_df.reset_index().melt(id_vars="index", var_name="Metric", value_name="Score")
-    sns.barplot(data=melted, x="Score", y="index", hue="Metric", palette="viridis")
-    plt.title("Model Performance Comparison (Tuned Models — Test Set)")
-    plt.xlabel("Score"); plt.ylabel("Model")
-    plt.legend(title="Metric", loc="lower right")
-    st.pyplot(plt.gcf()); plt.close()
+    """
+    Plot test metrics as a bar chart.
+    - Works for single-row or multi-row DataFrames.
+    - Handles named or unnamed indexes (avoids KeyError on 'index').
+    """
+    if test_df is None or test_df.empty:
+        st.info("No test metrics to plot.")
+        return
+
+    # Make a working copy and coerce numerics
+    df = test_df.copy()
+    for c in df.columns:
+        df[c] = pd.to_numeric(df[c], errors="coerce")
+
+    if len(df) == 1:
+        # Typical case: one row of metrics -> transpose to Metric/Score
+        melted = df.T.reset_index()
+        melted.columns = ["Metric", "Score"]
+    else:
+        # Multi-row case: keep the (possibly named) index as id var
+        df_reset = df.reset_index()
+        # If the index had a name, pandas uses it as the first column name; otherwise it's literally "index"
+        id_col = df.index.name if (df.index.name in df_reset.columns) else df_reset.columns[0]
+        melted = df_reset.melt(id_vars=id_col, var_name="Metric", value_name="Score")
+
+    chart = (
+        alt.Chart(melted)
+        .mark_bar()
+        .encode(
+            x=alt.X("Metric:N", sort="-y", title="Metric"),
+            y=alt.Y("Score:Q", title="Score"),
+            tooltip=list(melted.columns),
+        )
+    )
+    st.altair_chart(chart, use_container_width=True)
 
 def _plot_cv_bar(cv_df: pd.DataFrame):
-    plt.figure(figsize=(8,5))
-    melted = cv_df.melt(id_vars="Model", var_name="Metric", value_name="Score")
-    sns.barplot(data=melted, x="Score", y="Model", hue="Metric", palette="viridis")
-    plt.title("Cross-Validation Summary (Out-of-Fold, cv=5)")
-    plt.xlabel("Score"); plt.ylabel("Model")
-    plt.legend(title="Metric", loc="lower right")
-    st.pyplot(plt.gcf()); plt.close()
+    """
+    Plot cross-validation summary as bars grouped by Metric.
+    Safe if 'Model' is missing (uses index), ignores non-numeric columns.
+    """
+    if cv_df is None or cv_df.empty:
+        st.info("No cross-validation results to show.")
+        return
+
+    df = cv_df.copy()
+
+    # Ensure there is a 'Model' column (use index if necessary)
+    if "Model" not in df.columns:
+        df = df.reset_index()
+        # The first column after reset_index() is the former index (named or 'index')
+        first_col = df.columns[0]
+        if first_col != "Model":
+            df = df.rename(columns={first_col: "Model"})
+
+    # Metric columns = everything except 'Model'
+    metric_cols = [c for c in df.columns if c != "Model"]
+
+    # Coerce to numeric; drop metric columns that are entirely NaN after coercion
+    for c in metric_cols:
+        df[c] = pd.to_numeric(df[c], errors="coerce")
+    metric_cols = [c for c in metric_cols if df[c].notna().any()]
+
+    if not metric_cols:
+        st.warning("No numeric metric columns found to plot.")
+        st.dataframe(df)
+        return
+
+    melted = df.melt(
+        id_vars="Model",
+        value_vars=metric_cols,
+        var_name="Metric",
+        value_name="Score",
+    )
+
+    # Order models by mean score for a nicer plot
+    model_order = (
+        melted.groupby("Model")["Score"]
+        .mean()
+        .sort_values(ascending=False)
+        .index
+        .tolist()
+    )
+
+    fig, ax = plt.subplots(figsize=(8, 5))
+    sns.barplot(
+        data=melted,
+        x="Score",
+        y="Model",
+        hue="Metric",
+        order=model_order,
+        palette="viridis",
+        ax=ax,
+        errorbar=None,  # seaborn>=0.12
+    )
+    ax.set_title("Cross-Validation Summary (Out-of-Fold, cv=5)")
+    ax.set_xlabel("Score")
+    ax.set_ylabel("Model")
+    ax.legend(title="Metric", loc="lower right", frameon=False)
+
+    st.pyplot(fig)
+    plt.close(fig)
+    try:
+        # Compare Macro-F1 ranking between CV and Test
+        cv_rank = cv_df.sort_values("CV Macro-F1", ascending=False)["Model"].tolist()
+        test_rank = test_df.sort_values("F1 (macro)", ascending=False).index.tolist()
+        aligns = (cv_rank[0] == test_rank[0])
+        msg = "CV ranking aligns with the test-set leader." if aligns else "CV ranking differs from the test-set ordering."
+        st.markdown(f"**Interpretation:** {msg} CV provides an out-of-fold generalisation check.")
+    except Exception:
+        st.caption("CV provides an out-of-fold generalisation check.")
 
 def _quick_interpretation(test_df: pd.DataFrame):
     def safe(df, model, col):

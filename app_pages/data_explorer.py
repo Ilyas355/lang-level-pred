@@ -27,6 +27,31 @@ def map_cefr_to_ordinal(series: pd.Series) -> pd.Series:
     order = {"A1":1, "A2":2, "B1":3, "B2":4, "C1":5, "C2":6}
     return series.map(order)
 
+def _interpret_class_balance(counts: pd.Series) -> str:
+    total = int(counts.sum())
+    maj = counts.idxmax()
+    maj_n = int(counts.max())
+    maj_pct = maj_n / total if total else 0
+    return (f"**Interpretation:** The majority class is **{maj}** "
+            f"({maj_n}/{total}, {maj_pct:.1%}). This class imbalance can inflate "
+            f"**Accuracy/Weighted-F1** while depressing **Macro-F1**.")
+
+def _interpret_corr(df: pd.DataFrame) -> str:
+    if "CEFR_ordinal" not in df.columns:
+        return "**Interpretation:** Numeric correlations shown for reference."
+    corr = df.corr(numeric_only=True)["CEFR_ordinal"].drop(labels=["CEFR_ordinal"], errors="ignore")
+    top = corr.abs().sort_values(ascending=False).head(5)
+    items = "; ".join([f"`{k}`: {v:+.2f}" for k, v in top.items()])
+    return f"**Interpretation:** Top absolute correlations to **CEFR_ordinal** → {items}. Use with care; avoid leakage."
+
+def _interpret_hist(df: pd.DataFrame, feature: str, target: str | None) -> str:
+    if not target or target not in df.columns:
+        return "**Interpretation:** Univariate distribution shown."
+    means = df.groupby(target)[feature].mean().sort_values(ascending=False)
+    top, bot = means.index[0], means.index[-1]
+    return (f"**Interpretation:** Higher **{feature}** values tend to occur in **{top}**; "
+            f"lower in **{bot}** (by class means).")
+
 def leakage_columns_present(df: pd.DataFrame) -> list:
     present = [c for c in RAW_SCORE_COLUMNS if c in df.columns]
     for c in df.columns:
@@ -50,6 +75,8 @@ def plot_class_balance(df: pd.DataFrame, target: str):
         ax.text(i, v, str(v), ha="center", va="bottom", fontsize=9)
     st.pyplot(fig)
     st.caption(f"Total rows: **{int(counts.sum())}**. Imbalance can depress **Macro-F1** vs **Weighted-F1**.")
+    counts = df[target].value_counts(dropna=False)
+    st.markdown(_interpret_class_balance(counts))
 
 def plot_numeric_correlations(df: pd.DataFrame, target: str):
     num_cols = df.select_dtypes(include=[np.number]).columns.tolist()
@@ -71,6 +98,10 @@ def plot_numeric_correlations(df: pd.DataFrame, target: str):
         fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
         st.pyplot(fig)
         st.caption("Note: `CEFR_ordinal` is for EDA only (not used as a training feature).")
+    tmp = df.copy()
+    if target:
+        tmp["CEFR_ordinal"] = map_cefr_to_ordinal(tmp[target])
+    st.markdown(_interpret_corr(tmp))
 
 def plot_feature_hist(df: pd.DataFrame, feature: str, target: str | None = None):
     fig, ax = plt.subplots(figsize=(6,4))
@@ -81,6 +112,7 @@ def plot_feature_hist(df: pd.DataFrame, feature: str, target: str | None = None)
             vals = df.loc[df[target] == l, feature].dropna()
             ax.hist(vals, bins=20, alpha=0.5, label=l)
         ax.legend(title=target)
+        st.markdown(_interpret_hist(df, feature, target))
     else:
         ax.hist(df[feature].dropna(), bins=20, alpha=0.8)
     ax.set_title(f"Distribution: {feature}")
