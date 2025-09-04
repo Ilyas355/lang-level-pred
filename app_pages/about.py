@@ -37,3 +37,12 @@ def render():
 - Run locally: `streamlit run app.py`  
 - Deploy (e.g., Heroku): ensure `requirements.txt`, `Procfile`, `setup.sh`, `runtime.txt`.
     """)
+
+    st.subheader("Limitations")
+    st.markdown("""
+    - **Upper-end performance (C1/C2) is weaker** than mid-levels due to **class imbalance**, potential **label noise**, and **feature ceiling effects**.
+    - CEFR is **ordinal**, but current models are nominal classifiers; this can blur boundaries near C-levels.
+    - **Mitigations planned:** collect more C1/C2 data, explore **ordinal models** / **hierarchical C-band → C1/C2**, calibrate probabilities, and enrich **advanced-level features**.
+    - The app exposes **top-2 probabilities** and **low-confidence flags** to support human-in-the-loop review for high-stakes C-level placements.
+    """)
+
