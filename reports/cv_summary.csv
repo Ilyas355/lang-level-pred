@@ -1,0 +1,4 @@
+Model,CV Accuracy,CV Macro-F1,CV Weighted-F1
+Logistic Regression,0.772,0.71,0.778
+Random Forest,0.772,0.71,0.779
+XGBoost,0.75,0.682,0.752
