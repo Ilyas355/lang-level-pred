@@ -1,46 +1,3 @@
-# ![CI logo](https://codeinstitute.s3.amazonaws.com/fullstack/ci_logo_small.png)
-
-## Template Instructions
-
-Welcome,
-
-This is the Code Institute student template for the bring your own data project option in Predictive Analytics. We have preinstalled all of the tools you need to get started. It's perfectly okay to use this template as the basis for your project submissions. Click the `Use this template` button above to get started.
-
-You can safely delete the Template Instructions section of this README.md file and modify the remaining paragraphs for your own project. Please do read the Template Instructions at least once, though! It contains some important information about the IDE and the extensions we use.
-
-## How to use this repo
-
-1. Use this template to create your GitHub project repo
-
-1. In your newly created repo click on the green Code button. 
-
-1. Then, from the Codespaces tab, click Create codespace on main.
-
-1. Wait for the workspace to open. This can take a few minutes.
-
-1. Open a new terminal and `pip3 install -r requirements.txt`
-
-1. Open the jupyter_notebooks directory, and click on the notebook you want to open.
-
-1. Click the kernel button and choose Python Environments.
-
-Note that the kernel says Python 3.12.1 as it inherits from the workspace, so it will be Python-3.12.1 as installed by Codespaces. To confirm this, you can use `! python --version` in a notebook code cell.
-
-## Cloud IDE Reminders
-
-To log into the Heroku toolbelt CLI:
-
-1. Log in to your Heroku account and go to _Account Settings_ in the menu under your avatar.
-2. Scroll down to the _API Key_ and click _Reveal_
-3. Copy the key
-4. In the terminal, run `heroku_config`
-5. Paste in your API key when asked
-
-
-You can now use the `heroku` CLI program - try running `heroku apps` to confirm it works. This API key is unique and private to you so do not share it. If you accidentally make it public then you can create a new one with _Regenerate API Key_.
-
----
-
 # CEFR Level Prediction from Engineered Features
 
 A multi-page **Streamlit** dashboard that predicts a learner’s **CEFR level (A1–C2)** from **engineered, non-leaky features**, with supporting EDA, model evaluation, and a live **Predict CEFR** page.
@@ -234,3 +191,48 @@ streamlit run app.py
 
 ---
 
+## Main Data Analysis and Machine Learning Libraries
+
+* **pandas** — data loading & wrangling
+* **numpy** — vectorised math for feature engineering
+* **scikit-learn** — preprocessing, **LogisticRegression**, **RandomForestClassifier**, metrics, `GridSearchCV`, `Pipeline`
+* **xgboost** — `XGBClassifier`
+* **seaborn** / **matplotlib** — visualisation
+* **streamlit** — multipage dashboard & inference UI
+* **joblib** — save/load pipelines & preprocessors
+* **pathlib** — robust filesystem paths
+
+---
+
+## Credits
+
+### Content
+
+* **Author & dataset:** All data collection, feature engineering, modelling, and narrative were created by **the project author (Ilyas Hussein)**.
+* **Walkthrough inspiration & structure:** Code Institute Walkthrough Projects (dashboard architecture, CRISP-DM flow, deployment guidance).
+* **Community examples (dashboard patterns & repo structure):**
+
+  * [Blignaut24 / About-BulldozerPriceGenius\_BPG\_v2](https://github.com/Blignaut24/About-BulldozerPriceGenius-_BPG-_v2)
+  * [smtilson / pp5-ml-dashboard](https://github.com/smtilson/pp5-ml-dashboard/tree/main)
+
+### Official docs consulted
+
+* **scikit-learn – Logistic Regression:**
+  [https://scikit-learn.org/stable/modules/generated/sklearn.linear\_model.LogisticRegression.html](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html)
+* **scikit-learn – Random Forest Classifier:**
+  [https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.RandomForestClassifier.html)
+* **scikit-learn – Pipelines, GridSearchCV, metrics:**
+  [https://scikit-learn.org/stable/modules/compose.html](https://scikit-learn.org/stable/modules/compose.html)
+  [https://scikit-learn.org/stable/modules/generated/sklearn.model\_selection.GridSearchCV.html](https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.GridSearchCV.html)
+  [https://scikit-learn.org/stable/modules/model\_evaluation.html](https://scikit-learn.org/stable/modules/model_evaluation.html)
+* **XGBoost – XGBClassifier:**
+  [https://xgboost.readthedocs.io/en/stable/python/python\_api.html#xgboost.XGBClassifier](https://xgboost.readthedocs.io/en/stable/python/python_api.html#xgboost.XGBClassifier)
+* **Streamlit:**
+  [https://docs.streamlit.io/](https://docs.streamlit.io/)
+
+> No external media were used. Any adapted snippets are acknowledged above; remaining code and editorial content are original.
+
+### Other
+
+* **Youtube tutorials** - videos on youtube were also used for inspiration at different stages of the project.
+* **Stack overflow** - at certain stages stages of the project stack overflow was used to resolve issues.
