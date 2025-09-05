@@ -164,83 +164,10 @@ To avoid **target leakage**, the modelling task uses **engineered features** onl
 
 ## Limitations (and mitigations)
 
----
-
-## Dashboard Design (Streamlit App UI)
-
-### Page 1 — Quick Project Summary
-
-
-### Page 2 — Data Explorer (BR1)
-
-
-
-### Page 3 — Model Evaluation (BR2)
-
-
-### Page 4 — Predict CEFR (BR2)
-
-
-
-### Page 5 — Hypotheses & Validation
-
-
-
-### Page 6 — About
-
----
-
-## How to Run Locally
-
-```bash
-# 1) Create & activate a venv (Windows PowerShell)
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-
-# 2) Install deps
-pip install -r requirements.txt
-
-# 3) From the project root (where app.py lives)
-streamlit run app.py
-```
-
----
-
-## Deployment (Heroku)
-
-1. Ensure these files exist: `Procfile`, `setup.sh`, `runtime.txt`, `requirements.txt`.
-2. Push to GitHub. In Heroku → **New App** → **Connect to GitHub** → select repo → **Deploy Branch**.
-3. Open the public URL. If the build fails, check the logs and verify package versions (esp. `xgboost`, `scikit-learn`, `pandas`, `streamlit`).
-
----
-
-
-
-
-## Rationale: mapping requirements → visualisations & ML tasks
-
----
-
-## ML Business Case — Predict CEFR (Classification)
-
-
-**Saved artefacts (used by the app):**
-
----
-
-## Results Summary
-
-**Cross-validation (5-fold, out-of-fold on train):**
-
----
-
-## Limitations (and mitigations)
-
 * **Upper-end performance (C1/C2) weaker** than mid-levels — likely due to **class imbalance**, label granularity, and feature ceiling effects.
   **Mitigations:** collect more C1/C2 data; try **ordinal / hierarchical** classifiers; cost-sensitive tuning; richer advanced-level features; keep **top-2 probs + low-confidence flags** in the UI.
 
 ---
-
 ## Dashboard Design (Streamlit App UI)
 
 ### Page 1 — Quick Project Summary
@@ -304,3 +231,6 @@ streamlit run app.py
 1. Ensure these files exist: `Procfile`, `setup.sh`, `runtime.txt`, `requirements.txt`.
 2. Push to GitHub. In Heroku → **New App** → **Connect to GitHub** → select repo → **Deploy Branch**.
 3. Open the public URL. If the build fails, check the logs and verify package versions (esp. `xgboost`, `scikit-learn`, `pandas`, `streamlit`).
+
+---
+
