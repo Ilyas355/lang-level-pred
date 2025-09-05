@@ -1,4 +1,4 @@
-# CEFR Level Prediction from Engineered Features
+# CEFR Level Prediction
 
 A multi-page **Streamlit** dashboard that predicts a learner’s **CEFR level (A1–C2)** from **engineered, non-leaky features**, with supporting EDA, model evaluation, and a live **Predict CEFR** page.
 
