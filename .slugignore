@@ -1,0 +1,14 @@
+# Not needed to run the app on Heroku
+jupyter_notebooks/
+*.ipynb
+
+# Raw or unused data
+data/raw/
+data/**/*.zip
+*.zip
+*.tar
+*.gz
+
+# Unused model binaries (keep only the ones the app actually loads)
+random_forest_tuned_pipeline.joblib
+xgboost_tuned_pipeline.joblib
