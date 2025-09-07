@@ -169,6 +169,29 @@ As a teacher (or platform integrator), I want an on-demand CEFR prediction with 
 
 ---
 
+## Unfixed Bugs
+
+- **None known at the time of release.** The app runs end-to-end locally and on Heroku with the documented setup.
+
+### Notes & environment caveats (not bugs)
+
+- **Heroku build limits:** Deploys can fail if the slug exceeds 500 MB. Keep `requirements.txt` runtime-only (no heavy training libraries like `xgboost`) and use a `.slugignore` to exclude notebooks and large artifacts.
+- **Model artifacts required:** The dashboard expects:
+  - `models/final_logistic_regression_pipeline.pkl`
+  - (Optional) `models/preprocessing_pipeline.pkl` if your saved model doesn’t include the preprocessor.  
+  If these files are missing, the app will show a clear error—this is intentional guard-rail behaviour.
+- **Caching:** After swapping model files, you may need to clear Streamlit’s cache (`Settings → Clear cache`) to refresh loaded artifacts.
+
+### Reporting a bug
+
+If you hit an issue, please open a GitHub issue including:
+1. **Steps to reproduce** (what you clicked/entered).
+2. **Environment** (OS, Python version, Streamlit version).
+3. **Logs/screenshots** (Streamlit console output and any stack traces).
+4. **Commit hash** you were running.
+
+---
+
 ## How to Run Locally
 
 ```bash
@@ -187,7 +210,7 @@ streamlit run app.py
 
 ## Deployment (Heroku)
 
-1. Ensure these files exist: `Procfile`, `setup.sh`, `runtime.txt`, `requirements.txt`.
+1. Ensure these files exist: `Procfile`, `setup.sh`, `.python-version`, `requirements.txt`.
 2. Push to GitHub. In Heroku → **New App** → **Connect to GitHub** → select repo → **Deploy Branch**.
 3. Open the public URL. If the build fails, check the logs and verify package versions (esp. `xgboost`, `scikit-learn`, `pandas`, `streamlit`).
 
