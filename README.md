@@ -1,6 +1,8 @@
 # CEFR Level Prediction
 
-A multi-page **Streamlit** dashboard that predicts a learner’s **CEFR level (A1–C2)** from **engineered, non-leaky features**, with supporting EDA, model evaluation, and a live **Predict CEFR** page.
+# Introduction
+
+**CEFR Level Prediction** is a machine-learning project that analyses learner assessment data and builds pipelines to **predict CEFR levels (A1–C2)**. Using an author-created dataset, we engineer **non-leaky, interpretable features** and train three multiclass classifiers—**Logistic Regression**, **Random Forest**, and **XGBoost**—tuned with 5-fold cross-validation and compared on a held-out test set. The project delivers reproducible notebooks, saved models and reports, and a lightweight **Streamlit** app for exploring results and running live CEFR predictions.
 
 ---
 
@@ -59,20 +61,20 @@ To avoid **target leakage**, the modelling task uses **engineered features** onl
 
 ## Rationale: mapping requirements → visualisations & ML tasks
 
+### User Stories 
 
-* **BR1 → EDA / Feature design**
+US1 — Language teacher/assessor
+As a language teacher/assessor, I want to understand which patterns relate to CEFR and avoid target leakage so that I can trust the model’s outputs and use them to support placement decisions.
 
-  * Data overview and schema
-  * Class balance (bar plot)
-  * Correlation/PPS study to evidence leakage
-  * Definition of **engineered features** (relative skill patterns and profiles)
-  * Commit to **dropping raw scores** for modelling
-* **BR2 → Classification + Evaluation + Inference UI**
+US2 — Language teacher or platform integrator
+As a teacher (or platform integrator), I want an on-demand CEFR prediction with confidence cues and simple recommendations so that I can verify a learner’s level fairly and embed it into my workflow/product.
 
-  * Train/tune **Logistic Regression, Random Forest, XGBoost** via `GridSearchCV(cv=5, scoring="f1_macro")`
-  * Report **test-set** metrics and **cross-validation** summary
-  * **Decision rule:** highest Macro-F1 (tie-break on Accuracy; if within ±0.01, prefer simpler model)
-  * Deploy the selected model to the **Predict CEFR** page (live inputs → prediction + probabilities + simple recommendations)
+
+| Business Requirement                                                                                                                                                       | User Story | Data Visualisations (DV)                                                                                                                   | ML Tasks                                                                                                                                                                                     | Specific Actions Implemented                                                                                                                                                                          |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **BR1**: Analyse learner dataset, surface patterns driving CEFR, quantify class imbalance, detect leakage, and define **engineered (non-leaky)** features.                 | **US1**    | • Class balance bar chart (counts per CEFR)  • Correlation/PPS highlights vs `overall_cefr`  • Feature summary cards (engineered features) | • Feature engineering (relative gaps, profiles)  • **Exclude raw totals/sums** from modelling  • OHE with `handle_unknown="ignore"`                                                          | • EDA notebook with textual plot interpretations  • Documented feature schema  • Drop raw raw-sum features from `X`  • Save cleaned data to `data/clean/…`                                            |
+| **BR2**: Build & operate a **fair, interpretable CEFR classifier** meeting **Accuracy ≥ 0.75** and **Macro-F1 ≥ 0.70**; expose a Predict page with probabilities and tips. | **US2**    | • Test-set model comparison (Accuracy/Macro-F1/Weighted-F1)  • CV summary table  • Confusion matrices with captions                        | • Train/tune **LogReg, RF, XGB** via `GridSearchCV (cv=5, scoring="f1_macro")`  • Final model selection by **Macro-F1** (tie-break Accuracy; prefer simpler if ±0.01)  • Streamlit inference | • Export `reports/test_metrics_tuned.csv` & `reports/cv_summary.csv`  • Save pipeline to `models/…`  • Predict page: label + class probabilities + low-confidence flag + simple study recommendations |
+
 
 ---
 
